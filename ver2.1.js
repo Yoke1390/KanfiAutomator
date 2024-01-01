@@ -12,21 +12,14 @@ function create() {
     const memberSlides = scanExistingSlides(kanfiSlide, memberNotes, recordLog);
 
     memberNames.forEach(function (nameText) {
-        // 1枚目のスライド
         recordLog(nameText + "の1枚目のスライドを処理中...");
-        // 1枚目のスライドの識別子（スピーカーノート）を作成
-        let note1 = nameText + "1枚目。このテキストは変更しないでください。";
-        // 1枚目のスライドを作成。1枚目は初期化するだけでいい
-        initSlide(nameText, note1, nickNames, kanfiSlide, memberSlides);
+        let note1 = nameText + "1枚目。このテキストは変更しないでください。"; // 1枚目のスライドの識別子（スピーカーノート）を作成
+        initSlide(nameText, note1, nickNames, kanfiSlide, memberSlides); // 1枚目のスライドを作成。1枚目は初期化するだけでいい
 
-        // 2枚目のスライド
         recordLog(nameText + "の2枚目のスライドを処理中...");
-        // 2枚目のスライドの識別子（スピーカーノート）を作成
-        let note2 = nameText + "2枚目。このテキストは変更しないでください。";
-        // 2枚目のスライドを初期化。後の処理のため、変数に格納
-        let slide2 = initSlide(nameText, note2, nickNames, kanfiSlide, memberSlides);
-        // 2枚目のスライドにメッセージを表示
-        showMessage(slide2, messages, nameText);
+        let note2 = nameText + "2枚目。このテキストは変更しないでください。"; // 2枚目のスライドの識別子（スピーカーノート）を作成
+        let slide2 = initSlide(nameText, note2, nickNames, kanfiSlide, memberSlides); // 2枚目のスライドを初期化。後の処理のため、変数に格納
+        showMessage(slide2, messages, nameText); // 2枚目のスライドにメッセージを表示
     });
 
     recordLog("処理完了");
