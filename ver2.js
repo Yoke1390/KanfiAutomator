@@ -4,7 +4,7 @@ function create() {
     // スプレッドシート内の"メイン" という名前のシートを取得
     const mainSheet = spread.getSheetByName("メイン");
 
-    // ログデータを記録するセルを取得し、"実行開始" という値を設定
+    // ログデータを記録するセルを取得
     const logdata = mainSheet.getRange("d12");
     // ログデータを記録する関数
     function recordLog(text) {
@@ -95,9 +95,7 @@ function create() {
                 }
             });
         } else { // スライドが見つからない場合、新しいスライドを追加
-            kanfiSlide.appendSlide();
-            let index = kanfiSlide.getSlides().length - 1;
-            slideOfName = kanfiSlide.getSlides()[index];
+            slideOfName = kanfiSlide.appendSlide();
             // スライドの識別子（スピーカーノート）を設定
             slideOfName.getNotesPage().getSpeakerNotesShape().getText().setText(noteText);
             isNewSlide = true;
