@@ -1,5 +1,5 @@
 function create() {
-    const { spread, mainSheet } = initializeSheet();
+    const mainSheet = initializeSheet();
     const logdata = mainSheet.getRange("d12");
     const recordLog = createLogger(logdata);
     recordLog("実行開始");
@@ -9,6 +9,11 @@ function create() {
     const memberNotes = memberNames.flatMap(function (name) {
         return [name + "1枚目。このテキストは変更しないでください。", name + "2枚目。このテキストは変更しないでください。"];
     });
+
+    // for (let i = 0; i < memberNames.length; i++) {
+    //     recordLog(memberNotes[i]);
+    // }
+
     const memberSlides = scanExistingSlides(kanfiSlide, memberNotes, recordLog);
 
     memberNames.forEach(function (nameText) {
@@ -30,7 +35,7 @@ function initializeSheet() {
     const spread = SpreadsheetApp.getActiveSpreadsheet();
     // スプレッドシート内の"メイン" という名前のシートを取得
     const mainSheet = spread.getSheetByName("メイン");
-    return { spread, mainSheet };
+    return mainSheet;
 }
 
 // ログデータを記録する関数を作成する関数
@@ -90,12 +95,13 @@ function scanExistingSlides(kanfiSlide, memberNotes, recordLog) {
     const slideList = kanfiSlide.getSlides();
     for (let i = 0; i < slideList.length; i++) {
         let slide = slideList[i];
-        const note = slide.getNotesPage().getSpeakerNotesShape().getText().asString();
+        const note = slide.getNotesPage().getSpeakerNotesShape().getText().asString().trim(); // スライドのスピーカーノートを取得
         if (memberNotes.includes(note)) {
             // スピーカーノートが識別子リストに含まれている場合は、スライドを保存
             memberSlides[note] = slide;
         } else {
             // そうでない場合はスライドを削除リストに追加
+            recordLog("「" + note + "」のスライドを削除")
             slidesToRemove.push(slide);
         }
     }
