@@ -1,4 +1,4 @@
-function create() {
+function main() {
     // 感フィ君のスプレッドシートを取得。対象のフォームのデータやスライドのURLを取得するほか、ログを記録するためのセルも取得
     const mainSheet = initSheet();
     // D12のセルにログを記録する関数を作成
@@ -30,20 +30,14 @@ function create() {
     recordLog("処理完了");
 }
 
+// データの処理 //////////////////////////////////////////////////////////////////////////////
+
 function initSheet() {
     // GoogleスプレッドシートのAPIを使ってアクティブなスプレッドシートを取得
     const spread = SpreadsheetApp.getActiveSpreadsheet();
     // スプレッドシート内の"メイン" という名前のシートを取得
     const mainSheet = spread.getSheetByName("メイン");
     return mainSheet;
-}
-
-// ログデータを記録する関数を作成する関数
-function createLogger(logdata) {
-    return function (text) {
-        logdata.setValue(text); // シートの指定されたセルにログを設定
-        console.log(text); // コンソールにもログを出力（デバッグ用）
-    };
 }
 
 function getKanfiData(mainSheet, recordLog) {
@@ -57,15 +51,15 @@ function getKanfiData(mainSheet, recordLog) {
 }
 
 function getMemberData(kanfiSheet) {
-    // メンバーの名前を取得。Googleフォームの質問項目から取得。3列目まではそのほかの質問。
+    // メンバーの名前を取得する。Googleフォームの質問項目から取得。3列目まではそのほかの質問。
     const memberNames = kanfiSheet.getRange(1, 4, 1, kanfiSheet.getLastColumn() - 3).getValues()[0];
-    const nickNames = getNickNames(kanfiSheet); // 呼んで欲しい名前を取得
-    const messages = getMessages(kanfiSheet, memberNames); // メンバーへのメッセージを取得
-
     // メンバー名から空白を削除
     for (let i = 0; i < memberNames.length; i++) {
-        memberNames[i] = memberNames[i].replace(/\s+/g, "");
+        memberNames[i] = deleteSpace(memberNames[i]);
     }
+
+    const nickNames = getNickNames(kanfiSheet); // 呼んで欲しい名前を取得
+    const messages = getMessages(kanfiSheet, memberNames); // メンバーへのメッセージを取得
 
     return { memberNames, nickNames, messages };
 }
@@ -75,7 +69,7 @@ function getNickNames(kanfiSheet) {
     const nickNamesSource = kanfiSheet.getRange(2, 2, kanfiSheet.getLastRow() - 1, 2).getValues();
     const nickNames = {};
     nickNamesSource.forEach(function (row) {
-        const name = row[0].replace(/\s+/g, ""); // 回答に記載されていた本名から、正規表現を用いて空白を削除
+        const name = deleteSpace(row[0]); // 回答に記載されていた本名から、正規表現を用いて空白を削除
         nickNames[name] = row[1]; // 辞書の本名のキーに対して、ニックネームを格納
     });
     return nickNames;
@@ -87,7 +81,7 @@ function getMessages(kanfiSheet, memberNames) {
     const messages = {}; // メンバー名をキーにして、メッセージの配列を格納
     for (let i = 0; i < memberNames.length; i++) {
         messages[memberNames[i]] = messageSource.map(function (row) {
-            return row[i].replace(/\s+/g, "");
+            return deleteSpace(row[i]);
         }).filter(function (message) {
             return message !== '';
         });
@@ -95,14 +89,16 @@ function getMessages(kanfiSheet, memberNames) {
     return messages;
 }
 
-function scanExistingSlides(kanfiSlide, memberNotes, recordLog) {
-    recordLog("既存のスライドを確認中...");
+// スライドの処理 //////////////////////////////////////////////////////////////////////////////
+
+function scanexistingslides(kanfislide, memberNotes, recordlog) {
+    recordlog("既存のスライドを確認中...");
     const memberSlides = {};
     const slidesToRemove = [];
-    const slideList = kanfiSlide.getSlides();
-    for (let i = 0; i < slideList.length; i++) {
-        let slide = slideList[i];
-        const note = slide.getNotesPage().getSpeakerNotesShape().getText().asString().replace(/\s+/g, ""); // スライドのスピーカーノートを取得
+    const slidelist = kanfislide.getslides();
+    for (let i = 0; i < slidelist.length; i++) {
+        let slide = slidelist[i];
+        const note = deleteSpace(slide.getnotespage().getspeakernotesshape().gettext().asstring()); // スライドのスピーカーノートを取得
         if (memberNotes.includes(note)) {
             // スピーカーノートが識別子リストに含まれている場合は、スライドを保存
             memberSlides[note] = slide;
@@ -141,7 +137,7 @@ function checkSlide(slide, nameText, nicknameText) {
     let includeNickName = false;
     let shapes = slide.getShapes();
     shapes.forEach(function (shape) {
-        if (shape.getText().asString().replace(/\s+/g, "") == nicknameText) {
+        if (deleteSpace(shape.getText().asString()) == nicknameText) {
             // ニックネームがある場合はそのまま返す
             includeNickName = true;
         }
@@ -157,7 +153,7 @@ function checkSlide(slide, nameText, nicknameText) {
         if (nicknameText != nameText) {
             let shapes = slide.getShapes();
             shapes.forEach(function (shape) {
-                if (shape.getText().asString().replace(/\s+/g, "") == nameText) {
+                if (deleteSpace(shape.getText().asString()) == nameText) {
                     shape.remove();
                 }
             });
@@ -183,7 +179,7 @@ function showMessage(slide, messages, nameText) {
     let messageSet = new Set();
     let shapes = slide.getShapes();
     shapes.forEach(function (shape) {
-        messageSet.add(shape.getText().asString().replace(/\s+/g, ""));
+        messageSet.add(deleteSpace(shape.getText().asString()));
     });
 
     let sgn = 0; // テキストを挿入する位置を指定する変数
@@ -199,4 +195,17 @@ function showMessage(slide, messages, nameText) {
         textRNG.getTextStyle().setForegroundColor(225 - Math.ceil(Math.random() * 5) * 30, 225 - Math.ceil(Math.random() * 4) * 30, 225 - Math.ceil(Math.random() * 4) * 30).setFontSize(20);
         sgn++;
     });
+}
+
+// その他の処理 //////////////////////////////////////////////////////////////////////////////
+// ログデータを記録する関数を作成する関数
+function createLogger(logdata) {
+    return function (text) {
+        logdata.setValue(text); // シートの指定されたセルにログを設定
+        console.log(text); // コンソールにもログを出力（デバッグ用）
+    };
+}
+
+function deleteSpace(text) {
+    return text.replace(/[\s　]+/g, "");
 }
