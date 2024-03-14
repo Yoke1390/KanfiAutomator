@@ -71,9 +71,9 @@ function fetchKanfiData(mainSheet) {
 }
 
 function makeMembersMap(member_name_source) {
-    const members = {};
+    const members = new Map();
     for (const name of member_name_source) {
-        members[name] = new Member(name);
+        members.set(name, members[name]);
     };
     return members;
 }
