@@ -1,8 +1,8 @@
 class Member {
     constructor(name) {
         this.name = name;
-        this.note1 = name + "1枚目。このテキストは変更しないでください。";
-        this.note2 = name + "2枚目。このテキストは変更しないでください。";
+        this.note1 = name + "1枚目。このテキストは変更しないでください。"; // 1枚目のスライドの識別子（スピーカーノート）
+        this.note2 = name + "2枚目。このテキストは変更しないでください。"; // 2枚目のスライドの識別子（スピーカーノート）
         this.nickname = name; // ニックネームの初期値を本名にする
         this.messages = [];
         this.slide1 = null;
@@ -22,7 +22,7 @@ function main() {
     const { memberNameSource, nickNamesSource, messageSource } = fetchKanfiData(mainSheet);
     log("メンバーの一覧を作成中...");
     const members = makeMembersMap(memberNameSource);
-    log("読んでほしい名前を設定中...");
+    log("読んでほしい名前を読み込み中...");
     setNickNames(nickNamesSource, members);
     log("メッセージを割り当て中...");
     setMessages(messageSource, members);
@@ -30,7 +30,7 @@ function main() {
     // スライドの処理 /////////////////////////////////////////////////
     log("感フィを作成するスライドと接続中...");
     const kanfiSlide = connectKanfiSlide(mainSheet);
-    log("既存のスライドを確認中...");
+    log("既存のスライドを割り当て中...");
     assignExsistingSlidestoMembers(members, kanfiSlide);
     for (const member in members) {
         log(member.name + "の1枚目のスライドを処理中...");
@@ -147,10 +147,36 @@ function firstSlide(member, kanfiSlide) {
     }
 }
 
-function secondSlide(member, kanfiSlide) { }
+function secondSlide(member, kanfiSlide) {
+    // TODO: 2枚目のスライドを作成する関数を作成
+}
 
 function checkNicknameOnSlide(name, nickname, slide) {
     // TODO: スライドにニックネームが正しく表示されているか確認する関数を作成
+    const shapes_list = slide.getShapes();
+    for (const shape of shapes_list) {
+        if (deleteSpace(shape.getText().asString()) == nicknameText) {
+            // ニックネームがある場合はそのまま返す
+            return slide;
+        }
+    };
+
+    // ニックネームがない場合はニックネームを追加
+    const nickname_textbox = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, 155, 150, 400, 100);
+    const textbox_content = nickname_textbox.getText();
+    textbox_content.setText(nickname);
+    textbox_content.getTextStyle().setForegroundColor("#ffffff").setFontSize(60);
+    textbox_content.getParagraphStyle().setParagraphAlignment(SlidesApp.ParagraphAlignment.CENTER);
+
+    // ニックネームでない本名のみのテキストボックスを削除。
+    if (nickname != name) {
+        for (const shape of shapes_list) {
+            if (deleteSpace(shape.getText().asString()) == name) {
+                shape.remove();
+            }
+        };
+    }
+    return slide;
 }
 
 // その他の処理 //////////////////////////////////////////////////////////////////////////////
