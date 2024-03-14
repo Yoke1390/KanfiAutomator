@@ -38,6 +38,8 @@ function main() {
         log(member.name + "の2枚目のスライドを処理中...");
         secondSlide(member, kanfi_slide);
     };
+    //  TODO: スライドの順番を変更
+    // sortSlides(kanfi_slide);
 }
 
 // データの処理 //////////////////////////////////////////////////////////////////////////////
@@ -57,7 +59,7 @@ function fetchKanfiData(mainSheet) {
 
     const member_name_source = kanfiDataSheet.getRange(1, 4, 1, kanfiDataSheet.getLastColumn() - 3).getValues()[0];
     for (let i = 0; i < member_name_source.length; i++) {
-        member_name_source[i] = deleteSpace(memberNameSource[i]);
+        member_name_source[i] = deleteSpace(member_name_source[i]);
     }
 
     const nickname_source = kanfiDataSheet.getRange(2, 2, kanfiDataSheet.getLastRow() - 1, 2).getValues();
@@ -137,21 +139,27 @@ function assignExsistingSlidestoMembers(members, kanfiSlide) {
 }
 
 function firstSlide(member, kanfi_slide) {
-    // TODO: 1枚目のスライドを作成する関数を作成
-    if (member.slide1 !== null) {
-        checkNicknameOnSlide(member.name, member.nickname, member.slide1);
-        return;
+    if (member.slide1 == null) {
+        member.slide1 = kanfi_slide.appendSlide();
+        member.slide1.getNotesPage().getSpeakerNotesShape().getText().setText(member.note1);
     }
+    putNicknameOnSlide(member.name, member.nickname, member.slide1);
 }
 
 function secondSlide(member, kanfi_slide) {
-    // TODO: 2枚目のスライドを作成する関数を作成
+    // hack: 1枚目のスライドを作成するコードをコピーしている。slide1とslide2を配列にするといいかもしれない。
+    if (member.slide2 == null) {
+        member.slide2 = kanfi_slide.appendSlide();
+        member.slide2.getNotesPage().getSpeakerNotesShape().getText().setText(member.note2);
+    }
+    putNicknameOnSlide(member.name, member.nickname, member.slide2);
+    putMessagesOnSlide(member.messages, member.slide2);
 }
 
-function checkNicknameOnSlide(name, nickname, slide) {
+function putNicknameOnSlide(name, nickname, slide) {
     const shapes_list = slide.getShapes();
     for (const shape of shapes_list) {
-        if (deleteSpace(shape.getText().asString()) == nicknameText) {
+        if (deleteSpace(shape.getText().asString()) == nickname) {
             // ニックネームがある場合はそのまま返す
             return slide;
         }
@@ -173,6 +181,35 @@ function checkNicknameOnSlide(name, nickname, slide) {
         };
     }
     return slide;
+}
+
+function putMessagesOnSlide(message_list, slide) {
+    // 重複を避けるため、現在スライドにあるすべてのテキストをsetに格納。
+    const exsisting_messages = new Set(slide.getShapes().map(shape => deleteSpace(shape.getText().asString())));
+
+    let i = 0; // テキストを挿入する位置を指定する変数
+    for (message of message_list) {
+        if (exsisting_messages.has(message)) continue; // 重複を避ける
+
+        exsisting_messages.add(message);
+        putNewMessage(message, slide, i);
+        i++;
+    };
+}
+
+function putNewMessage(message, slide, i) {
+    // 8メッセージで1列になるように配置
+    const x_coordinate = ((i - (i % 8)) / 8) * 150 + 450;
+    const y_coordinate = (i % 8) * 50;
+    const textbox = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, x_coordinate, y_coordinate);
+
+    const textbox_content = textbox.getText();
+    textbox_content.setText(message);
+
+    const style = textbox_content.getTextStyle();
+    style.setForegroundColor(getRandomRGB());
+    style.setFontFamily("HiraginoSans-W3")
+    style.setFontSize(20);
 }
 
 // その他の処理 //////////////////////////////////////////////////////////////////////////////
