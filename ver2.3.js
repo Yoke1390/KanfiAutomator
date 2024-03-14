@@ -7,6 +7,7 @@ class Member {
         this.messages = [];
         this.slide1 = null;
         this.slide2 = null;
+        this.slides = [this.slide1, this.slide2];
     }
 }
 
@@ -111,31 +112,38 @@ function connectKanfiSlide(mainSheet) {
     return SlidesApp.openByUrl(mainSheet.getRange("d3").getValue());
 }
 
-function assignExsistingSlidestoMembers(members, kanfiSlide) {
+function assignExsistingSlidestoMembers(members, kanfi_slide) {
     // 各メンバーのスライドの識別子を格納する集合を作成
-    set_of_notes = new Set();
+    const set_of_notes = new Set();
     for (const name in members) {
         set_of_notes.add(members[name].note1);
         set_of_notes.add(members[name].note2);
     }
 
-    const exsisting_slides = kanfiSlide.getslides();
+    const exsisting_slides = kanfi_slide.getSlides();
     const slides_to_remove = []; //  todo：削除リストが必要かどうかテスト
     for (const slide of exsisting_slides) {
-        const note = deleteSpace(slide.getnotespage().getspeakernotesshape().gettext().asstring()); // スライドのスピーカーノートを取得
+        // fixme: noteがundefinedになることがある
+        const note = deleteSpace(slide.getNotesPage().getSpeakerNotesShape().getText().asString()); // スライドのスピーカーノートを取得
         if (set_of_notes.includes(note)) {
             // スピーカーノートが識別子リストに含まれている場合は、スライドを保存
-            //  TODO：メンバーに既存のスライドを割り当てるアルゴリズムを変更。スピーカーノートのテキストを解析して、誰の何枚目のスライドかを判断する。
+            setSlideFromNote(note, slide, members);
         } else {
             // そうでない場合はスライドを削除リストに追加
-            recordLog("スピーカーノート「" + note + "」のスライドを削除")
+            log("スピーカーノート「" + note + "」のスライドを削除");
             slides_to_remove.push(slide);
         }
     }
     for (const slide of slides_to_remove) {
         // 削除リストに含まれるスライドを実際に削除
-        slide.remove();
+        // slide.remove();
     };
+}
+
+function setSlideFromNote(note, slide, members) {
+    const name = note.split("枚目")[0].slice(0, -1);
+    const slide_index = note.split("枚目")[0].slice(-1) - 1;
+    members[name].slides[slide_index] = slide;
 }
 
 function firstSlide(member, kanfi_slide) {
