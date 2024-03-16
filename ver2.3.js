@@ -55,26 +55,27 @@ function connectMainSheet() {
 
 function fetchKanfiData(mainSheet) {
     // アンケートデータが存在するスプレッドシートのURLを取得し、そのURLを使ってシートを取得
+    const form_url = mainSheet.getRange("b3").getValue();
     // 感フィのスライドのURLを取得し、そのURLを使ってプレゼンテーションを開く
-    const kanfiDataSheet = SpreadsheetApp.openByUrl(mainSheet.getRange("b3").getValue()).getActiveSheet();
+    const kanfi_form_sheet = SpreadsheetApp.openByUrl(form_url).getActiveSheet();
 
-    const member_name_source = kanfiDataSheet.getRange(1, 4, 1, kanfiDataSheet.getLastColumn() - 3).getValues()[0];
-    for (let name of member_name_source) {
-        name = deleteSpace(name);
-    }
+    // let xxx_source... : データの取得
+    // xxx_source=xxx_source.map... : データの整形(空白の削除)
 
-    const nickname_source = kanfiDataSheet.getRange(2, 2, kanfiDataSheet.getLastRow() - 1, 2).getValues();
-    for (const row of nickname_source) {
-        row[0] = deleteSpace(row[0]);
-        row[1] = deleteSpace(row[1]);
-    }
+    let member_name_source = kanfi_form_sheet.getRange(1, 4, 1, kanfi_form_sheet.getLastColumn() - 3).getValues()[0];
+    member_name_source = member_name_source.map(
+        name => deleteSpace(name)
+    );
 
-    const message_source = kanfiDataSheet.getRange(2, 4, kanfiDataSheet.getLastRow() - 1, kanfiDataSheet.getLastColumn() - 3).getValues();
-    for (const row of message_source) {
-        for (let message of row) {
-            message = deleteSpace(message);
-        }
-    }
+    let nickname_source = kanfi_form_sheet.getRange(2, 2, kanfi_form_sheet.getLastRow() - 1, 2).getValues();
+    nickname_source = nickname_source.map(
+        row => row.map(text => deleteSpace(text))
+    );
+
+    let message_source = kanfi_form_sheet.getRange(2, 4, kanfi_form_sheet.getLastRow() - 1, kanfi_form_sheet.getLastColumn() - 3).getValues();
+    message_source = message_source.map(
+        row => row.map(message => deleteSpace(message))
+    );
 
     return { member_name_source, nickname_source, message_source };
 }
@@ -89,10 +90,10 @@ function makeMembersMap(member_name_source) {
 
 function setNickNames(nickname_source, members) {
     for (const row of nickname_source) {
-        const name = deleteSpace(row[0]);
+        const name = row[0];
         const target_member = members.get(name);
 
-        const nickname = deleteSpace(row[1]);
+        const nickname = row[1];
         target_member.nickname = nickname;
     };
     // 正しいニックネームが設定されているか確認
@@ -103,16 +104,16 @@ function setNickNames(nickname_source, members) {
 
 function setMessages(message_source, members) {
     let i = 0;
-    for (const name in members) {
+    for (const member of members.values()) {
         // membersの並び順とmessage_sourceの並び順が一致していることを前提としている
-        members[name].messages = message_source.map(function (row) {
+        member.messages = message_source.map(function (row) {
             return deleteSpace(row[i]);
         }).filter(function (message) {
             return message !== "";
         });
         i++;
     }
-    // 正しいメッセージが設定されているか確認するためのコード。main関数の中に記述する。
+    // 正しいメッセージが設定されているか確認するためのコード。
     // for (const name in members) {
     //     console.log(members[name].messages); // テスト用なので、コンソールに出力すればOK
     // };
