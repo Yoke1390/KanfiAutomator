@@ -59,13 +59,22 @@ function fetchKanfiData(mainSheet) {
     const kanfiDataSheet = SpreadsheetApp.openByUrl(mainSheet.getRange("b3").getValue()).getActiveSheet();
 
     const member_name_source = kanfiDataSheet.getRange(1, 4, 1, kanfiDataSheet.getLastColumn() - 3).getValues()[0];
-    for (let i = 0; i < member_name_source.length; i++) {
-        member_name_source[i] = deleteSpace(member_name_source[i]);
+    for (let name of member_name_source) {
+        name = deleteSpace(name);
     }
 
     const nickname_source = kanfiDataSheet.getRange(2, 2, kanfiDataSheet.getLastRow() - 1, 2).getValues();
+    for (const row of nickname_source) {
+        row[0] = deleteSpace(row[0]);
+        row[1] = deleteSpace(row[1]);
+    }
 
     const message_source = kanfiDataSheet.getRange(2, 4, kanfiDataSheet.getLastRow() - 1, kanfiDataSheet.getLastColumn() - 3).getValues();
+    for (const row of message_source) {
+        for (let message of row) {
+            message = deleteSpace(message);
+        }
+    }
 
     return { member_name_source, nickname_source, message_source };
 }
@@ -80,8 +89,11 @@ function makeMembersMap(member_name_source) {
 
 function setNickNames(nickname_source, members) {
     for (const row of nickname_source) {
-        const name = deleteSpace(row[0]); // 回答に記載されていた本名から空白を削除
-        members[name].nickname = row[1];
+        const name = deleteSpace(row[0]);
+        const target_member = members.get(name);
+
+        const nickname = deleteSpace(row[1]);
+        target_member.nickname = nickname;
     };
     // 正しいニックネームが設定されているか確認
     // for (const name in members) {
@@ -92,6 +104,7 @@ function setNickNames(nickname_source, members) {
 function setMessages(message_source, members) {
     let i = 0;
     for (const name in members) {
+        // membersの並び順とmessage_sourceの並び順が一致していることを前提としている
         members[name].messages = message_source.map(function (row) {
             return deleteSpace(row[i]);
         }).filter(function (message) {
