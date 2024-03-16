@@ -124,7 +124,18 @@ function setMessages(message_source, members) {
 
 function connectKanfiSlide(mainSheet) {
     // D3のセルに記載されているURLを使ってスライドを開く
-    return SlidesApp.openByUrl(mainSheet.getRange("d3").getValue());
+    const kanfi_url = mainSheet.getRange("d3").getValue();
+    if (deleteSpace(kanfi_url) == "") {
+        // URLが空の場合は新しいスライドを作成
+        log("感フィのスライドを新規作成");
+        const new_slide = SlidesApp.create("感フィ");
+
+        const new_slide_url = new_slide.getUrl();
+        mainSheet.getRange("d3").setValue(new_slide_url);
+
+        return new_slide;
+    }
+    return SlidesApp.openByUrl(kanfi_url);
 }
 
 
