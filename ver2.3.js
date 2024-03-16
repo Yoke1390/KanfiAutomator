@@ -73,7 +73,7 @@ function fetchKanfiData(mainSheet) {
 function makeMembersMap(member_name_source) {
     const members = new Map();
     for (const name of member_name_source) {
-        members.set(name, members[name]);
+        members.set(name, new Member(name));
     };
     return members;
 }
@@ -127,7 +127,7 @@ function assignExsistingSlidestoMembers(members, kanfi_slide) {
         const note = deleteSpace(slide.getNotesPage().getSpeakerNotesShape().getText().asString()); // スライドのスピーカーノートを取得
         if (set_of_notes.includes(note)) {
             // スピーカーノートが識別子リストに含まれている場合は、スライドを保存
-            setSlideFromNote(note, slide, members);
+            setSlideFromNote(note, slide, members); // todo: 動作テスト
         } else {
             // そうでない場合はスライドを削除リストに追加
             log("スピーカーノート「" + note + "」のスライドを削除");
