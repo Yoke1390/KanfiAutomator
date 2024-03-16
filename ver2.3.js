@@ -1,13 +1,14 @@
 class Member {
     constructor(name) {
         this.name = name;
-        this.note1 = name + "1枚目。このテキストは変更しないでください。"; // 1枚目のスライドの識別子（スピーカーノート）
-        this.note2 = name + "2枚目。このテキストは変更しないでください。"; // 2枚目のスライドの識別子（スピーカーノート）
+
+        const note1 = name + "1枚目。このテキストは変更しないでください。"; // 1枚目のスライドの識別子（スピーカーノート）
+        const note2 = name + "2枚目。このテキストは変更しないでください。"; // 2枚目のスライドの識別子（スピーカーノート）
+        this.notes = [note1, note2];
+
         this.nickname = name; // ニックネームの初期値を本名にする
         this.messages = [];
-        this.slide1 = null;
-        this.slide2 = null;
-        this.slides = [this.slide1, this.slide2];
+        this.slides = [null, null];
     }
 }
 
@@ -33,7 +34,7 @@ function main() {
     const kanfi_slide = connectKanfiSlide(main_sheet);
     log("既存のスライドを割り当て中...");
     assignExsistingSlidestoMembers(members, kanfi_slide);
-    for (const member in members) {
+    for (const member of members.values()) {
         log(member.name + "の1枚目のスライドを処理中...");
         firstSlide(member, kanfi_slide);
         log(member.name + "の2枚目のスライドを処理中...");
@@ -126,22 +127,23 @@ function connectKanfiSlide(mainSheet) {
     return SlidesApp.openByUrl(mainSheet.getRange("d3").getValue());
 }
 
+
 function assignExsistingSlidestoMembers(members, kanfi_slide) {
     // 各メンバーのスライドの識別子を格納する集合を作成
     const set_of_notes = new Set();
     for (const member of members.values()) {
-        set_of_notes.add(member.note1);
-        set_of_notes.add(member.note2);
+        for (const note of member.notes) {
+            set_of_notes.add(note)
+        }
     }
 
     const exsisting_slides = kanfi_slide.getSlides();
     const slides_to_remove = []; //  todo：削除リストが必要かどうかテスト
     for (const slide of exsisting_slides) {
-        // fixme: noteがundefinedになることがある
         const note = deleteSpace(slide.getNotesPage().getSpeakerNotesShape().getText().asString()); // スライドのスピーカーノートを取得
         if (set_of_notes.has(note)) {
             // スピーカーノートが識別子リストに含まれている場合は、スライドを保存
-            setSlideFromNote(note, slide, members); // todo: 動作テスト
+            setSlideFromNote(note, slide, members);
         } else {
             // そうでない場合はスライドを削除リストに追加
             log("スピーカーノート「" + note + "」のスライドを削除");
@@ -150,12 +152,13 @@ function assignExsistingSlidestoMembers(members, kanfi_slide) {
     }
     for (const slide of slides_to_remove) {
         // 削除リストに含まれるスライドを実際に削除
+        // テスト時にはVer1のコードで作成したスライドを用いるといい。
         // slide.remove();
     };
 }
 
 function setSlideFromNote(note, slide, members) {
-    console.log("スピーカーノート「" + note + "」のスライドをセット");
+    log("スピーカーノート「" + note + "」のスライドをセット");
     const slide_info = note.split("枚目")[0]
     const name = slide_info.slice(0, -1);
     const slide_index = slide_info.slice(-1) - 1;
@@ -165,21 +168,24 @@ function setSlideFromNote(note, slide, members) {
 }
 
 function firstSlide(member, kanfi_slide) {
-    if (member.slide1 == null) {
-        member.slide1 = kanfi_slide.appendSlide();
-        member.slide1.getNotesPage().getSpeakerNotesShape().getText().setText(member.note1);
-    }
-    putNicknameOnSlide(member.name, member.nickname, member.slide1);
+    initSlide(member, kanfi_slide, 0)
 }
 
 function secondSlide(member, kanfi_slide) {
-    // hack: 1枚目のスライドを作成するコードをコピーしている。slide1とslide2を配列にするといいかもしれない。
-    if (member.slide2 == null) {
-        member.slide2 = kanfi_slide.appendSlide();
-        member.slide2.getNotesPage().getSpeakerNotesShape().getText().setText(member.note2);
-    }
-    putNicknameOnSlide(member.name, member.nickname, member.slide2);
+    initSlide(memeber, kanfi_slide, 1)
     putMessagesOnSlide(member.messages, member.slide2);
+}
+
+function initSlide(member, kanfi_slide, slide_index) {
+    const target_slide = member.slides[slide_index];
+    if (target_slide == null) {
+        target_slide = kanfi_slide.appendSlide();
+        target_slide.getNotesPage().getSpeakerNotesShape().getText().setText(member.notes[slide_index]); // スピーカーノートを設定
+        target_slide.getBackground.setSolidFill("#000000"); // スライドの背景色を黒に設定
+        member.slides[slide_index] = target_slide;
+    }
+    putNicknameOnSlide(member.name, member.nickname, target_slide);
+    return target_slide;
 }
 
 function putNicknameOnSlide(name, nickname, slide) {
