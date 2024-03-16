@@ -15,7 +15,7 @@ function main() {
     // 感フィ君のスプレッドシートを取得。
     const main_sheet = connectMainSheet();
     // D12のセルにログを記録する関数を作成
-    const log = createLogger(main_sheet.getRange("d12"));
+    log = createLogger(main_sheet.getRange("d12"));
     log("実行開始");
 
     // データの処理 ///////////////////////////////////////////////////
@@ -129,9 +129,9 @@ function connectKanfiSlide(mainSheet) {
 function assignExsistingSlidestoMembers(members, kanfi_slide) {
     // 各メンバーのスライドの識別子を格納する集合を作成
     const set_of_notes = new Set();
-    for (const name in members) {
-        set_of_notes.add(members[name].note1);
-        set_of_notes.add(members[name].note2);
+    for (const member of members.values()) {
+        set_of_notes.add(member.note1);
+        set_of_notes.add(member.note2);
     }
 
     const exsisting_slides = kanfi_slide.getSlides();
@@ -139,7 +139,7 @@ function assignExsistingSlidestoMembers(members, kanfi_slide) {
     for (const slide of exsisting_slides) {
         // fixme: noteがundefinedになることがある
         const note = deleteSpace(slide.getNotesPage().getSpeakerNotesShape().getText().asString()); // スライドのスピーカーノートを取得
-        if (set_of_notes.includes(note)) {
+        if (set_of_notes.has(note)) {
             // スピーカーノートが識別子リストに含まれている場合は、スライドを保存
             setSlideFromNote(note, slide, members); // todo: 動作テスト
         } else {
@@ -155,9 +155,13 @@ function assignExsistingSlidestoMembers(members, kanfi_slide) {
 }
 
 function setSlideFromNote(note, slide, members) {
-    const name = note.split("枚目")[0].slice(0, -1);
-    const slide_index = note.split("枚目")[0].slice(-1) - 1;
-    members[name].slides[slide_index] = slide;
+    console.log("スピーカーノート「" + note + "」のスライドをセット");
+    const slide_info = note.split("枚目")[0]
+    const name = slide_info.slice(0, -1);
+    const slide_index = slide_info.slice(-1) - 1;
+
+    const target_member = members.get(name);
+    target_member.slides[slide_index] = slide;
 }
 
 function firstSlide(member, kanfi_slide) {
