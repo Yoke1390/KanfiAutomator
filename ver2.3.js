@@ -14,7 +14,7 @@ class Member {
 function main() {
     // 感フィ君のスプレッドシートを取得。
     const main_sheet = connectMainSheet();
-    // D12のセルにログを記録する関数を作成
+    // D12のセルにログを記録する関数を作成。constやletをつけず、グローバルにアクセスできるようにしている。
     log = createLogger(main_sheet.getRange("d12"));
     log("実行開始");
 
@@ -73,7 +73,7 @@ function fetchKanfiData(mainSheet) {
     // フォームへの回答の2列目と3列目から、名前と読んで欲しい名前のペアを取得
     let nickname_source = kanfi_form_sheet.getRange(2, 2, kanfi_form_sheet.getLastRow() - 1, 2).getValues();
     nickname_source = nickname_source.map(
-        row => row.map(text => deleteSpace(text))
+        row => row.map(name_or_nickname => deleteSpace(name_or_nickname))
     );
 
     // 2行目以降、4列目以降から、メンバーへのメッセージを取得
@@ -130,9 +130,9 @@ function connectKanfiSlide(mainSheet) {
     // D3のセルに感フィのスライドのURLが記載されている。
     const kanfi_url = mainSheet.getRange("d3").getValue();
     if (deleteSpace(kanfi_url) == "") {
-        // URLが空の場合は新しいスライドを作成
-        log("感フィのスライドを新規作成");
-        const new_slide = SlidesApp.create("感フィ");
+        log("URLが入力されていません。感フィのスライドを新規作成します。");
+        const new_slide_title = "感フィ";
+        const new_slide = SlidesApp.create(new_slide_title);
 
         const new_slide_url = new_slide.getUrl();
         mainSheet.getRange("d3").setValue(new_slide_url);
@@ -151,24 +151,27 @@ function assignExsistingSlidesToMembers(members, kanfi_slide) {
         }
     }
 
+    // 既存のスライドの中から、識別子の集合に含まれるスピーカーノートを持つスライドだけを保存する
     const exsisting_slides = kanfi_slide.getSlides();
     for (const slide of exsisting_slides) {
-        const note = deleteSpace(slide.getNotesPage().getSpeakerNotesShape().getText().asString()); // スライドのスピーカーノートを取得
+        // スライドのスピーカーノートを取得
+        const note = deleteSpace(slide.getNotesPage().getSpeakerNotesShape().getText().asString());
         if (set_of_notes.has(note)) {
             // スピーカーノートが識別子リストに含まれている場合は、スライドを保存
             setSlideFromNote(note, slide, members);
         } else {
+            // 削除したくない場合は、この2行をコメントアウト
             log("スピーカーノート「" + note + "」のスライドを削除");
-            slide.remove(); // 削除したくない場合は、この2行をコメントアウト
+            slide.remove();
         }
     }
 }
 
 function setSlideFromNote(note, slide, members) {
     log("スピーカーノート「" + note + "」のスライドをセット");
-    const slide_info = note.split("枚目")[0]
-    const name = slide_info.slice(0, -1);
-    const slide_index = slide_info.slice(-1) - 1;
+    const slide_info = note.split("枚目")[0]        // "佐藤太郎1枚目。このテキストは変更しないでください。" => "佐藤太郎1"
+    const name = slide_info.slice(0, -1);          // "佐藤太郎1" => "佐藤太郎"
+    const slide_index = slide_info.slice(-1) - 1;  // "佐藤太郎1" =>  0
 
     const target_member = members.get(name);
     target_member.slides[slide_index] = slide;
@@ -225,11 +228,15 @@ function putNicknameOnSlide(name, nickname, slide) {
 
 function putMessagesOnSlide(message_list, slide) {
     // 重複を避けるため、現在スライドにあるすべてのテキストをsetに格納。
-    const exsisting_messages = new Set(slide.getShapes().map(shape => deleteSpace(shape.getText().asString())));
+    const exsisting_messages = new Set(slide.getShapes().map(
+        shape => deleteSpace(shape.getText().asString())
+    ));
 
     let i = 0; // テキストを挿入する位置を指定する変数
     for (message of message_list) {
-        if (exsisting_messages.has(message)) continue; // 重複を避ける
+        if (exsisting_messages.has(message)) {
+            continue // 重複を避ける
+        };
 
         exsisting_messages.add(message);
         putNewMessage(message, slide, i);
@@ -265,11 +272,12 @@ function createLogger(loggerCell) {
 }
 
 function deleteSpace(text) {
-    // 正規表現を用いて空白を削除
+    // 正規表現を用いて空白を削除。[\s　]のsと]の間に全角スペースが存在することに注意。
     return text.replace(/[\s　]+/g, "");
 }
 
 function getRandomRGB() {
+    // ランダムな色相と最大の彩度、明度を持つ色を作成する関数
     const hue = Math.floor(Math.random() * 360); // ランダムな色相
     const saturation = 100; // 最大彩度
     const brightness = 100; // 最大明度
