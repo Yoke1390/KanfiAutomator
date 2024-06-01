@@ -5,9 +5,10 @@ class Member {
         this.messages = [];
         this.slides = [null, null];
 
-        const note1 = name + "1枚目。このテキストは変更しないでください。"; // 1枚目のスライドの識別子（スピーカーノート）
-        const note2 = name + "2枚目。このテキストは変更しないでください。"; // 2枚目のスライドの識別子（スピーカーノート）
-        this.notes = [note1, note2];
+        // スライドの識別子（スピーカーノート）
+        this.notes = [1, 2].map(
+            n => `${name}${n}枚目。このテキストは変更しないでください。`
+        )
     }
 }
 
@@ -15,7 +16,9 @@ function main() {
     // 感フィ君のスプレッドシートを取得。
     const main_sheet = connectMainSheet();
     // D12のセルにログを記録する関数を作成。constやletをつけず、グローバルにアクセスできるようにしている。
-    log = createLogger(main_sheet.getRange("d12"));
+    const LOG_CELL = main_sheet.getRange("d12");
+    log = createLogger(LOG_CELL);
+    error = errorLogger(log); // エラーログを記録する関数を作成
     log("実行開始");
 
     // データの処理 ///////////////////////////////////////////////////
@@ -56,7 +59,16 @@ function connectMainSheet() {
 function fetchKanfiData(main_sheet) {
     // アンケートデータが存在するスプレッドシートのURLを取得し、そのURLを使ってシートを取得
     const form_url = main_sheet.getRange("b3").getValue();
+    if (deleteSpace(form_url) == "") {
+        error("感フィの回答のスプレッドシートのURLが入力されていません。");
+    }
     const kanfi_form_sheet = SpreadsheetApp.openByUrl(form_url).getActiveSheet();
+    if (kanfi_form_sheet == null) {
+        error("感フィの回答のスプレッドシートが見つかりません。");
+    }
+    if (kanfi_form_sheet.getLastRow() < 2) {
+        error("感フィの回答が1つもありません。");
+    }
 
     // 1行目の4列目から最終列まで（フォームの質問に書かれているメンバーの名前）
     const member_name_source = kanfi_form_sheet.getRange(1, 4, 1, kanfi_form_sheet.getLastColumn() - 3).getValues()[0]
@@ -151,7 +163,7 @@ function assignExsistingSlidesToMembers(members, kanfi_slide) {
         if (set_of_notes.has(speaker_note)) {
             setSlideFromNote(speaker_note, slide, members);
         } else {
-            log("スピーカーノート「" + speaker_note + "」のスライドを削除");
+            log("スピーカーノート「" + speaker_note + "」に対応するメンバーが見つかりません。スライドを削除");
             slide.remove();
         }
     }
@@ -237,13 +249,14 @@ function putMessagesOnSlide(message_list, slide) {
     };
 }
 
+const TEXTBOX_WIDTH = 200;
+const TEXTBOX_HEIGHT = 50;
+
 function putNewMessage(message, slide, i) {
     // 8メッセージで1列になるように配置
     const left = ((i - (i % 8)) / 8) * 150 + 450; // 左からの位置
     const top = (i % 8) * 50; // 上からの位置
-    const width = 200;
-    const height = 50;
-    const textbox = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, left, top, width, height);
+    const textbox = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, left, top, TEXTBOX_WIDTH, TEXTBOX_HEIGHT);
 
     const textbox_content = textbox.getText();
     textbox_content.setText(message);
@@ -258,9 +271,17 @@ function putNewMessage(message, slide, i) {
 
 function createLogger(loggerCell) {
     // ログデータを記録する関数を作成する関数
-    return function (text) {
+    return function(text) {
         loggerCell.setValue(text); // シートの指定されたセルにログを設定
         console.log(text); // コンソールにもログを出力（デバッグ用）
+    };
+}
+
+function errorLogger(loggerFunction) {
+    // エラーログを記録する関数を作成する関数
+    return function(error_message) {
+        loggerFunction("エラー: " + error_message);
+        throw new Error(error_message);
     };
 }
 
