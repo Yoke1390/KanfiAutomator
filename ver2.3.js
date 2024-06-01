@@ -49,38 +49,36 @@ function main() {
 
 function connectMainSheet() {
     const active_spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    // スプレッドシート内の"メイン" という名前のシートを取得
     const main_sheet = active_spreadsheet.getSheetByName("メイン");
     return main_sheet;
 }
 
-function fetchKanfiData(mainSheet) {
+function fetchKanfiData(main_sheet) {
     // アンケートデータが存在するスプレッドシートのURLを取得し、そのURLを使ってシートを取得
-    const form_url = mainSheet.getRange("b3").getValue();
+    const form_url = main_sheet.getRange("b3").getValue();
     const kanfi_form_sheet = SpreadsheetApp.openByUrl(form_url).getActiveSheet();
 
-    // let xxx_source... : データの取得
-    // xxx_source=xxx_source.map... : データの整形(空白の削除)。
-    //      mapメソッドは配列の各要素に対して関数を実行し、その結果を新しい配列として返す。
-    //      =>はアロー関数。引数を受け取り、その引数を元にして何かを返す関数を簡潔に書くための構文。
-
     // 1行目の4列目から最終列まで（フォームの質問に書かれているメンバーの名前）
-    let member_name_source = kanfi_form_sheet.getRange(1, 4, 1, kanfi_form_sheet.getLastColumn() - 3).getValues()[0];
-    member_name_source = member_name_source.map(
-        name => deleteSpace(name)
-    );
+    const member_name_source = kanfi_form_sheet.getRange(1, 4, 1, kanfi_form_sheet.getLastColumn() - 3).getValues()[0]
+        .map(
+            name => deleteSpace(name)
+        );
 
     // フォームへの回答の2列目と3列目から、名前と読んで欲しい名前のペアを取得
-    let nickname_source = kanfi_form_sheet.getRange(2, 2, kanfi_form_sheet.getLastRow() - 1, 2).getValues();
-    nickname_source = nickname_source.map(
-        row => row.map(name_or_nickname => deleteSpace(name_or_nickname))
-    );
+    const nickname_source = kanfi_form_sheet.getRange(2, 2, kanfi_form_sheet.getLastRow() - 1, 2).getValues()
+        .map(
+            row => row.map(
+                name_or_nickname => deleteSpace(name_or_nickname)
+            )
+        );
 
     // 2行目以降、4列目以降から、メンバーへのメッセージを取得
-    let message_source = kanfi_form_sheet.getRange(2, 4, kanfi_form_sheet.getLastRow() - 1, kanfi_form_sheet.getLastColumn() - 3).getValues();
-    message_source = message_source.map(
-        row => row.map(message => deleteSpace(message))
-    );
+    const message_source = kanfi_form_sheet.getRange(2, 4, kanfi_form_sheet.getLastRow() - 1, kanfi_form_sheet.getLastColumn() - 3).getValues()
+        .map(
+            row => row.map(
+                message => deleteSpace(message)
+            )
+        );
 
     return { member_name_source, nickname_source, message_source };
 }
@@ -100,28 +98,22 @@ function setNicknames(nickname_source, members) {
         const nickname = row[1];
         target_member.nickname = nickname;
     };
-    // 正しいニックネームが設定されているか確認するためのコード。
-    // for (const name in members) {
-    //     console.log(members[name].nickname); // テスト用なので、コンソールに出力すればOK
-    // };
 }
 
 function setMessages(message_source, members) {
-    // membersの追加順とmessage_sourceの並び順が一致していることを前提としている。
+    // membersの追加順とmessage_sourceの並び順がフォームの回答欄の順番で一致していることを前提としている。
     // 高々数十人のメンバーなので、計算量は気にしないでいい。
-    let i = 0;
+
+    let member_index = 0; // フォームの回答欄の順番にしたがって、スプレッドシートの列を指定する。
+
     for (const member of members.values()) {
         member.messages = message_source.map(
-            row => deleteSpace(row[i])
+            row => deleteSpace(row[member_index])
         ).filter(
             message => message !== '' // 空でないメッセージのみを抽出
         );
-        i++;
+        member_index++;
     }
-    // 正しいメッセージが設定されているか確認するためのコード。
-    // for (const name in members) {
-    //     console.log(members[name].messages); // テスト用なので、コンソールに出力すればOK
-    // };
 }
 
 // スライドの処理 //////////////////////////////////////////////////////////////////////////////
@@ -154,14 +146,12 @@ function assignExsistingSlidesToMembers(members, kanfi_slide) {
     // 既存のスライドの中から、識別子の集合に含まれるスピーカーノートを持つスライドだけを保存する
     const exsisting_slides = kanfi_slide.getSlides();
     for (const slide of exsisting_slides) {
-        // スライドのスピーカーノートを取得
-        const note = deleteSpace(slide.getNotesPage().getSpeakerNotesShape().getText().asString());
-        if (set_of_notes.has(note)) {
-            // スピーカーノートが識別子リストに含まれている場合は、スライドを保存
-            setSlideFromNote(note, slide, members);
+        const speaker_note = deleteSpace(slide.getNotesPage().getSpeakerNotesShape().getText().asString());
+
+        if (set_of_notes.has(speaker_note)) {
+            setSlideFromNote(speaker_note, slide, members);
         } else {
-            // 削除したくない場合は、この2行をコメントアウト
-            log("スピーカーノート「" + note + "」のスライドを削除");
+            log("スピーカーノート「" + speaker_note + "」のスライドを削除");
             slide.remove();
         }
     }
@@ -169,20 +159,23 @@ function assignExsistingSlidesToMembers(members, kanfi_slide) {
 
 function setSlideFromNote(note, slide, members) {
     log("スピーカーノート「" + note + "」のスライドをセット");
-    const slide_info = note.split("枚目")[0]        // "佐藤太郎1枚目。このテキストは変更しないでください。" => "佐藤太郎1"
+
+    // スピーカーノートからメンバー名とスライド番号を取得
+    const slide_info = note.split("枚目。")[0]      // "佐藤太郎1枚目。このテキストは変更しないでください。" => "佐藤太郎1"
     const name = slide_info.slice(0, -1);          // "佐藤太郎1" => "佐藤太郎"
     const slide_index = slide_info.slice(-1) - 1;  // "佐藤太郎1" =>  0
 
-    const target_member = members.get(name);
+    const target_member = members.get(name); // Mapオブジェクトの操作はset/getで行うことに注意
+
     target_member.slides[slide_index] = slide;
 }
 
 function firstSlide(member, kanfi_slide) {
-    initSlide(member, kanfi_slide, 0)
+    initializeSlide(member, kanfi_slide, 0)
 }
 
 function secondSlide(member, kanfi_slide) {
-    initSlide(member, kanfi_slide, 1)
+    initializeSlide(member, kanfi_slide, 1)
     putMessagesOnSlide(member.messages, member.slides[1]);
 }
 
@@ -255,10 +248,10 @@ function putNewMessage(message, slide, i) {
     const textbox_content = textbox.getText();
     textbox_content.setText(message);
 
-    const style = textbox_content.getTextStyle();
-    style.setForegroundColor(getRandomRGB());
-    style.setFontFamily("HiraginoSans-W3")
-    style.setFontSize(20);
+    const text_style = textbox_content.getTextStyle();
+    text_style.setForegroundColor(getRandomRGB());
+    text_style.setFontFamily("HiraginoSans-W3")
+    text_style.setFontSize(20);
 }
 
 // ユーティリティ //////////////////////////////////////////////////////////////////////////////
@@ -285,8 +278,7 @@ function getRandomRGB() {
     // RGBに変換
     const rgb = hsvToRgb(hue, saturation, brightness);
 
-    // カラーコードを生成
-    const rgb_code = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+    // 16進数のカラーコードに変換
     const rgb_hex = rgbToHex(rgb);
 
     return rgb_hex;
